@@ -1,18 +1,22 @@
 package com.okcity.okcity;
 
 import android.Manifest;
+import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.drive.Drive;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -23,31 +27,42 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import java.util.Map;
+public class RecordFragment extends Fragment implements
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        LocationListener {
 
-public class RecordFragment extends Fragment {
-
-    MapView mMapView;
+    private static final String TAG = "RecordFragment";
+    private MapView mMapView;
     private GoogleMap googleMap;
     private final int FINE_LOCATION_PERMISSION = 0;
     private final int COARSE_LOCATION_PERMISSION = 1;
+    private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
+    private LocationRequest locationRequest;
+    private GoogleApiClient googleApiClient;
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater,
+                             ViewGroup container,
+                             Bundle savedInstanceState) {
         View rootView = inflater.inflate(R.layout.fragment_record, container, false);
-
-//        GoogleApiClient mGoogleApiClient = new GoogleApiClient.Builder(this)
-//                .enableAutoManage(this /* FragmentActivity */,
-//                        this /* OnConnectionFailedListener */)
-//                .addApi(.API)
-//                .addScope(Drive.SCOPE_FILE)
-//                .build();
-
 
         mMapView = (MapView) rootView.findViewById(R.id.mapView);
         mMapView.onCreate(savedInstanceState);
-
         mMapView.onResume(); // needed to get the map to display immediately
+
+        googleApiClient = new GoogleApiClient.Builder(getContext())
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+
+        googleApiClient.connect();
+
+        locationRequest = LocationRequest.create()
+                .setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
+                .setInterval(10 * 1000)        // 10 seconds
+                .setFastestInterval(1000);     // 1 second
 
         try {
             MapsInitializer.initialize(getActivity().getApplicationContext());
@@ -88,20 +103,63 @@ public class RecordFragment extends Fragment {
                 == PackageManager.PERMISSION_GRANTED;
     }
 
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+        if (connectionResult.hasResolution()) {
+            try {
+                // Start an Activity that tries to resolve the error
+                connectionResult.startResolutionForResult(getActivity(), CONNECTION_FAILURE_RESOLUTION_REQUEST);
+            } catch (IntentSender.SendIntentException e) {
+                e.printStackTrace();
+            }
+        } else {
+            Log.e(TAG, "Location services connection failed with code " + connectionResult.getErrorCode());
+        }
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+
+
+        if (checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION) &&
+                checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
+//            LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+            LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
+        }
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+    }
+
     private void moveMarkerToUserPosition(final GoogleMap googleMap) {
         if (checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
                 checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
             googleMap.setMyLocationEnabled(true);
 
-//            Location currentLocation = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
-        }
+            Location location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
 
+            if (location != null) {
+                handleNewLocation(googleMap, location);
+            }
+        }
+    }
+
+    private void handleNewLocation(GoogleMap googleMap, Location location) {
+        LatLng userPosition = new LatLng(location.getLatitude(),
+                location.getLongitude());
         // For dropping a marker at a point on the Map
-        LatLng sydney = new LatLng(-34, 151);
-        googleMap.addMarker(new MarkerOptions().position(sydney).title("Marker Title").snippet("Marker Description"));
+        MarkerOptions marker = new MarkerOptions()
+                .position(userPosition)
+                .title("Your Location")
+                .snippet("Your snippet");
+
+        googleMap.addMarker(marker);
 
         // For zooming automatically to the location of the marker
-        CameraPosition cameraPosition = new CameraPosition.Builder().target(sydney).zoom(12).build();
+        CameraPosition cameraPosition = new CameraPosition.Builder()
+                .target(userPosition).zoom(17).build();
+
         googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
     }
 
@@ -114,6 +172,10 @@ public class RecordFragment extends Fragment {
     @Override
     public void onPause() {
         super.onPause();
+        if (googleApiClient.isConnected()) {
+            LocationServices.FusedLocationApi.removeLocationUpdates(googleApiClient, this);
+            googleApiClient.disconnect();
+        }
         mMapView.onPause();
     }
 
@@ -127,5 +189,10 @@ public class RecordFragment extends Fragment {
     public void onLowMemory() {
         super.onLowMemory();
         mMapView.onLowMemory();
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        handleNewLocation(googleMap, location);
     }
 }
