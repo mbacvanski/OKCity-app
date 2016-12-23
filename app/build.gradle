@@ -26,5 +26,10 @@ dependencies {
     })
     compile 'com.android.support:appcompat-v7:25.1.0'
     compile 'com.android.support:design:25.1.0'
+    // Yes, I know it's outdated
+    // 10.1.0 throws com.android.tools.fd.runtime.BootstrapApplication won't run
+    // Unless you update Google Play Services
+    compile 'com.google.android.gms:play-services:9.6.0'
     testCompile 'junit:junit:4.12'
 }
+
