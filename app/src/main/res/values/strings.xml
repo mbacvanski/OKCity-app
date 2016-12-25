@@ -3,5 +3,7 @@
     <string name="Record">What\'s up?</string>
     <string name="browse">Browse</string>
     <string name="profile">Profile</string>
-    <string name="record">Record</string>
+    <string name="report">Report</string>
+    <string name="app_directory">OkCity</string>
+    <string name="whats_up">What\'s Up?</string>
 </resources>

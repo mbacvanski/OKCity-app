@@ -6,6 +6,8 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.media.MediaRecorder;
 import android.os.Bundle;
+import android.os.SystemClock;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
@@ -14,6 +16,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -29,6 +32,7 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.File;
 import java.io.IOException;
 
 public class RecordFragment extends Fragment implements
@@ -37,13 +41,13 @@ public class RecordFragment extends Fragment implements
         LocationListener {
 
     private static final String TAG = "RecordFragment";
+
     private MapView mMapView;
     private GoogleMap googleMap;
-    private final int FINE_LOCATION_PERMISSION = 0;
-    private final int COARSE_LOCATION_PERMISSION = 1;
-    private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
+
+    private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
     private Button recordButton;
     private boolean recording = false;
@@ -90,22 +94,17 @@ public class RecordFragment extends Fragment implements
             @Override
             public void onMapReady(GoogleMap mMap) {
                 googleMap = mMap;
-                boolean fineLocation = checkPermission(Manifest.permission.ACCESS_FINE_LOCATION);
-                boolean coarseLocation = checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION);
-                if (!fineLocation) {
-                    askForPermissions(Manifest.permission.ACCESS_COARSE_LOCATION,
-                            COARSE_LOCATION_PERMISSION);
-                }
-                if (!coarseLocation) {
-                    askForPermissions(Manifest.permission.ACCESS_FINE_LOCATION,
-                            FINE_LOCATION_PERMISSION);
-                }
-                if (fineLocation && coarseLocation) {
-                    // We have all the permissions we need
-                    moveMarkerToUserPosition(googleMap);
-                }
+                moveMarkerToUserPosition(googleMap);
             }
         });
+
+        // Check and ask for all permissions at the beginning.
+        // So apparently you can't ask for several permissions at the same time :sobs:
+
+        String[] permissions = new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                Manifest.permission.READ_EXTERNAL_STORAGE,
+                Manifest.permission.RECORD_AUDIO};
+        askForPermissions(permissions, 7);
 
         return v;
     }
@@ -120,23 +119,38 @@ public class RecordFragment extends Fragment implements
     }
 
     private void startRecording() {
+        String fileName = getContext().getFilesDir()
+                + "/recordings/"
+                + System.currentTimeMillis()
+                + ".3gp";
+        File audioFile = new File(fileName);
+
+        Log.d(TAG, "output file path = " + audioFile.getAbsolutePath());
+
+        try {
+            audioFile.getParentFile().mkdirs();
+            audioFile.createNewFile(); // if file already exists will do nothing
+        } catch (IOException e) {
+            Log.e(TAG, "Could not create recording output file");
+            e.printStackTrace();
+        }
+
         mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
         mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        mRecorder.setOutputFile(mFileName);
+        mRecorder.setOutputFile(fileName);
         mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 
         try {
             mRecorder.prepare();
+            mRecorder.start();
         } catch (IOException e) {
-            Log.e(LOG_TAG, "prepare() failed");
+            e.printStackTrace();
         }
-
-        mRecorder.start();
     }
 
-    private void askForPermissions(String permission, int requestCode) {
-        ActivityCompat.requestPermissions(getActivity(), new String[]{permission}, requestCode);
+    private void askForPermissions(String[] permissions, int requestCode) {
+        ActivityCompat.requestPermissions(getActivity(), permissions, requestCode);
     }
 
     private boolean checkPermission(String permission) {
@@ -160,11 +174,8 @@ public class RecordFragment extends Fragment implements
 
     @Override
     public void onConnected(Bundle bundle) {
-
-
         if (checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION) &&
                 checkPermission(Manifest.permission.ACCESS_FINE_LOCATION)) {
-//            LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
             LocationServices.FusedLocationApi.requestLocationUpdates(googleApiClient, locationRequest, this);
         }
     }
@@ -193,7 +204,7 @@ public class RecordFragment extends Fragment implements
         MarkerOptions marker = new MarkerOptions()
                 .position(userPosition)
                 .title("Your Location")
-                .snippet("Your snippet");
+                .snippet("Your ");
 
         googleMap.addMarker(marker);
 
