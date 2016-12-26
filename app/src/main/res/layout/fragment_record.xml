@@ -30,12 +30,14 @@
             android:layout_height="wrap_content"
             android:layout_alignParentLeft="true"
             android:layout_alignParentStart="true"
-            android:layout_alignParentTop="true">
+            android:layout_alignParentTop="true"
+            android:layout_gravity="center_horizontal">
 
             <TextView
                 android:id="@+id/textView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginEnd="47dp"
                 android:layout_marginRight="47dp"
                 android:paddingBottom="@dimen/general_padding"
@@ -51,6 +53,7 @@
                 android:id="@+id/recordButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginEnd="@dimen/general_padding"
                 android:layout_marginRight="@dimen/general_padding"
                 android:paddingBottom="@dimen/general_padding"
@@ -64,13 +67,25 @@
             android:layout_height="match_parent"
             android:layout_below="@id/whatsupRow">
 
-            <EditText
-                android:id="@+id/voiceRecognizedText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:ems="10"
-                android:inputType="textMultiLine"
-                android:text="" />
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" >
+
+                    <EditText
+                        android:id="@+id/voiceRecognizedText"
+                        android:layout_width="match_parent"
+                        android:layout_height="180dp"
+                        android:ems="10"
+                        android:inputType="textMultiLine"
+                        android:text="" />
+                </LinearLayout>
+            </ScrollView>
+
         </TableRow>
 
     </RelativeLayout>

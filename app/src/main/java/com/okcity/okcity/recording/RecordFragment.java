@@ -1,4 +1,4 @@
-package com.okcity.okcity;
+package com.okcity.okcity.recording;
 
 import android.Manifest;
 import android.content.Intent;
@@ -11,6 +11,8 @@ import android.speech.RecognizerIntent;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -32,6 +34,7 @@ import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.okcity.okcity.R;
 
 import java.util.List;
 
@@ -52,6 +55,7 @@ public class RecordFragment extends Fragment implements
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
     private RecorderRecognizer recorderRecognizer;
+    private Recording currentRecording;
 
     private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
@@ -234,6 +238,7 @@ public class RecordFragment extends Fragment implements
     public void onDestroy() {
         super.onDestroy();
         mMapView.onDestroy();
+        recorderRecognizer.destroyEverything(); // Kaboom
     }
 
     @Override
@@ -249,9 +254,33 @@ public class RecordFragment extends Fragment implements
 
     @Override
     public void onResults(List<String> results) {
-        Log.d(TAG, "Got results from recording: " + results);
-        Toast.makeText(getActivity(), "Recording resulted!",
-                Toast.LENGTH_LONG).show();
         recognizedText.setText(results.get(0));
+        currentRecording = new Recording(results.get(0), getCurrentLocation());
+        recognizedText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                Log.d(TAG, "Text changed!");
+                currentRecording.setTranscribedText(s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                Log.d(TAG, "After text changed");
+            }
+        });
+
+    }
+
+    private Location getCurrentLocation() {
+        if (checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
+                checkPermission(Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+        }
+        return null;
     }
 }

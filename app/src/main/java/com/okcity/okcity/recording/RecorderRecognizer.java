@@ -1,4 +1,4 @@
-package com.okcity.okcity;
+package com.okcity.okcity.recording;
 
 import android.content.Context;
 import android.content.Intent;
@@ -71,5 +71,9 @@ public class RecorderRecognizer {
 
         intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5);
         sr.startListening(intent);
+    }
+
+    void destroyEverything() {
+        sr.destroy();
     }
 }
