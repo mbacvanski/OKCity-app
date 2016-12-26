@@ -1,12 +1,13 @@
 package com.okcity.okcity;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.location.Location;
-import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.Environment;
+import android.speech.RecognizerIntent;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
@@ -15,6 +16,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -30,26 +33,27 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import java.io.IOException;
+import java.util.List;
+
+import static android.app.Activity.RESULT_OK;
 
 public class RecordFragment extends Fragment implements
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
-        LocationListener {
+        LocationListener,
+        SpeechListener {
 
     private static final String TAG = "RecordFragment";
+    private static final int VOICE_RECOGNITION_REQUEST_CODE = 100;
 
+    private EditText recognizedText;
     private MapView mMapView;
     private GoogleMap googleMap;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
-    private String audioFileName = "";
+    private RecorderRecognizer recorderRecognizer;
 
     private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
-
-    private Button recordButton;
-    private boolean recording = false;
-    private MediaRecorder mRecorder = null;
 
     @Override
     public View onCreateView(LayoutInflater inflater,
@@ -57,11 +61,13 @@ public class RecordFragment extends Fragment implements
                              Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_record, container, false);
 
-        recordButton = (Button) v.findViewById(R.id.recordButton);
+        recognizedText = (EditText) v.findViewById(R.id.voiceRecognizedText);
+
+        Button recordButton = (Button) v.findViewById(R.id.recordButton);
         recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                recordButtonClick();
+                startRecording();
             }
         });
 
@@ -96,54 +102,51 @@ public class RecordFragment extends Fragment implements
             }
         });
 
-        // Check and ask for all permissions at the beginning.
-        // So apparently you can't ask for several permissions at the same time :sobs:
+        recorderRecognizer = new RecorderRecognizer(getContext(), this);
 
         String[] permissions = new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,
                 Manifest.permission.READ_EXTERNAL_STORAGE,
                 Manifest.permission.RECORD_AUDIO};
         askForPermissions(permissions, 7);
 
-        mRecorder = new MediaRecorder();
-
         return v;
     }
 
-    private void recordButtonClick() {
-        if (!recording) {
-            startRecording();
-        } else {
-            stopRecording();
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == VOICE_RECOGNITION_REQUEST_CODE) {
+            if (resultCode == RESULT_OK) {
+                List<String> textMatchList = data
+                        .getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+
+                Log.d(TAG, "textMatchList = " + textMatchList.toString());
+            } else if (resultCode == RecognizerIntent.RESULT_AUDIO_ERROR) {
+                Log.d(TAG, "Audio Error");
+            } else if (resultCode == RecognizerIntent.RESULT_CLIENT_ERROR) {
+                Log.d(TAG, "Client Error");
+            } else if (resultCode == RecognizerIntent.RESULT_NETWORK_ERROR) {
+                Log.d(TAG, "Network Error");
+            } else if (resultCode == RecognizerIntent.RESULT_NO_MATCH) {
+                Log.d(TAG, "No Match");
+            } else if (resultCode == RecognizerIntent.RESULT_SERVER_ERROR) {
+                Log.d(TAG, "Server Error");
+            }
         }
+        super.onActivityResult(requestCode, resultCode, data);
     }
 
     private void startRecording() {
-        recording = true;
-        recordButton.setText(R.string.stop_recording);
-        audioFileName = Environment.getExternalStorageDirectory().getAbsolutePath()
-                + "/recordings/"
-                + System.currentTimeMillis()
-                + ".mp4";
-
-        mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
-        mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-        mRecorder.setOutputFile(audioFileName);
-
-        try {
-            mRecorder.prepare();
-            mRecorder.start();
-        } catch (IOException e) {
-            e.printStackTrace();
+        // Check for voice recognizer
+        PackageManager pm = getActivity().getPackageManager();
+        List<ResolveInfo> activities = pm.queryIntentActivities(new Intent(
+                RecognizerIntent.ACTION_RECOGNIZE_SPEECH), 0);
+        if (activities.size() == 0) {
+            Toast.makeText(getActivity(), "Voice recognizer not present",
+                    Toast.LENGTH_LONG).show();
+            Log.d(TAG, "Voice recognition not present");
+        } else {
+            recorderRecognizer.startRecordingIntention();
         }
-    }
-
-    private void stopRecording() {
-        recording = false;
-        recordButton.setText(R.string.start_recording);
-        mRecorder.stop();
-        mRecorder.release();
-        mRecorder = null;
     }
 
     private void askForPermissions(String[] permissions, int requestCode) {
@@ -242,5 +245,13 @@ public class RecordFragment extends Fragment implements
     @Override
     public void onLocationChanged(Location location) {
         handleNewLocation(googleMap, location);
+    }
+
+    @Override
+    public void onResults(List<String> results) {
+        Log.d(TAG, "Got results from recording: " + results);
+        Toast.makeText(getActivity(), "Recording resulted!",
+                Toast.LENGTH_LONG).show();
+        recognizedText.setText(results.get(0));
     }
 }
