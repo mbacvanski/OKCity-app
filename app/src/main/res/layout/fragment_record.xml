@@ -51,7 +51,7 @@
                 android:layout_height="wrap_content"
                 android:paddingBottom="@dimen/general_padding"
                 android:paddingTop="@dimen/general_padding"
-                android:text="@string/report"
+                android:text="@string/start_recording"
                 android:layout_marginRight="98dp"
                 android:layout_marginEnd="98dp" />
         </TableRow>

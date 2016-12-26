@@ -6,8 +6,7 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.media.MediaRecorder;
 import android.os.Bundle;
-import android.os.SystemClock;
-import android.support.annotation.NonNull;
+import android.os.Environment;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
@@ -16,7 +15,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -32,7 +30,6 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
-import java.io.File;
 import java.io.IOException;
 
 public class RecordFragment extends Fragment implements
@@ -46,6 +43,7 @@ public class RecordFragment extends Fragment implements
     private GoogleMap googleMap;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
+    private String audioFileName = "";
 
     private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
@@ -106,40 +104,31 @@ public class RecordFragment extends Fragment implements
                 Manifest.permission.RECORD_AUDIO};
         askForPermissions(permissions, 7);
 
+        mRecorder = new MediaRecorder();
+
         return v;
     }
 
     private void recordButtonClick() {
-        recording = !recording;
-        if (recording) {
+        if (!recording) {
             startRecording();
         } else {
-
+            stopRecording();
         }
     }
 
     private void startRecording() {
-        String fileName = getContext().getFilesDir()
+        recording = true;
+        recordButton.setText(R.string.stop_recording);
+        audioFileName = Environment.getExternalStorageDirectory().getAbsolutePath()
                 + "/recordings/"
                 + System.currentTimeMillis()
-                + ".3gp";
-        File audioFile = new File(fileName);
+                + ".mp4";
 
-        Log.d(TAG, "output file path = " + audioFile.getAbsolutePath());
-
-        try {
-            audioFile.getParentFile().mkdirs();
-            audioFile.createNewFile(); // if file already exists will do nothing
-        } catch (IOException e) {
-            Log.e(TAG, "Could not create recording output file");
-            e.printStackTrace();
-        }
-
-        mRecorder = new MediaRecorder();
         mRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-        mRecorder.setOutputFile(fileName);
+        mRecorder.setOutputFormat(MediaRecorder.OutputFormat.AMR_NB);
         mRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+        mRecorder.setOutputFile(audioFileName);
 
         try {
             mRecorder.prepare();
@@ -147,6 +136,14 @@ public class RecordFragment extends Fragment implements
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private void stopRecording() {
+        recording = false;
+        recordButton.setText(R.string.start_recording);
+        mRecorder.stop();
+        mRecorder.release();
+        mRecorder = null;
     }
 
     private void askForPermissions(String[] permissions, int requestCode) {
@@ -203,8 +200,7 @@ public class RecordFragment extends Fragment implements
         // For dropping a marker at a point on the Map
         MarkerOptions marker = new MarkerOptions()
                 .position(userPosition)
-                .title("Your Location")
-                .snippet("Your ");
+                .title("Your Location");
 
         googleMap.addMarker(marker);
 

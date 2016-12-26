@@ -6,4 +6,6 @@
     <string name="report">Report</string>
     <string name="app_directory">OkCity</string>
     <string name="whats_up">What\'s Up?</string>
+    <string name="stop_recording">Stop recording</string>
+    <string name="start_recording">Start Recording</string>
 </resources>
