@@ -75,7 +75,7 @@ public class RecordFragment extends Fragment implements
             }
         });
 
-        mMapView = (MapView) v.findViewById(R.id.mapView);
+        mMapView = (MapView) v.findViewById(R.id.recordMapView);
         mMapView.onCreate(savedInstanceState);
         mMapView.onResume(); // needed to get the map to display immediately
 
@@ -266,6 +266,7 @@ public class RecordFragment extends Fragment implements
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 Log.d(TAG, "Text changed!");
                 currentRecording.setTranscribedText(s.toString());
+
             }
 
             @Override
@@ -273,6 +274,9 @@ public class RecordFragment extends Fragment implements
                 Log.d(TAG, "After text changed");
             }
         });
+    }
+
+    private void sendRecording(Recording recording) {
 
     }
 

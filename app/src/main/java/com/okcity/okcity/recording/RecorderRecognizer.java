@@ -10,13 +10,13 @@ import android.util.Log;
 
 import java.util.List;
 
-public class RecorderRecognizer {
+class RecorderRecognizer {
 
     private SpeechRecognizer sr;
     private static final String TAG = "RecorderRecognizer";
     private SpeechListener speechListener;
 
-    public RecorderRecognizer(Context context, SpeechListener speechListener) {
+    RecorderRecognizer(Context context, SpeechListener speechListener) {
         this.speechListener = speechListener;
         sr = SpeechRecognizer.createSpeechRecognizer(context);
         sr.setRecognitionListener(new SpeechRecognitionListener());

@@ -2,7 +2,7 @@ package com.okcity.okcity.recording;
 
 import android.location.Location;
 
-class Recording {
+public class Recording {
 
     private String transcribedText;
     private Location recordedLocation;

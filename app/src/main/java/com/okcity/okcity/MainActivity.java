@@ -9,6 +9,7 @@ import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 
+import com.okcity.okcity.browsing.BrowseFragment;
 import com.okcity.okcity.recording.RecordFragment;
 
 import java.util.ArrayList;
