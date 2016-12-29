@@ -42,7 +42,9 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
 
@@ -59,6 +61,8 @@ public class BrowseFragment extends Fragment implements
     private GoogleApiClient googleApiClient;
     private boolean firstTimeZoomingToUserLocation = true;
 
+    private List<String> idsOnMap;
+
     public BrowseFragment() {
         // Required empty public constructor
     }
@@ -71,6 +75,8 @@ public class BrowseFragment extends Fragment implements
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
+        idsOnMap = new ArrayList<>();
+
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
         mMapView = (MapView) v.findViewById(R.id.browseMapView);
         mMapView.onCreate(savedInstanceState);
@@ -104,7 +110,7 @@ public class BrowseFragment extends Fragment implements
                     @Override
                     public void onCameraMoveStarted(int i) {
                         Log.i(TAG, "Camera moved!");
-                        //                        getNearbyReports(getCurrentLocation(), 5.0);
+                        getNearbyReports(getCurrentLocation(), 5.0);
                     }
                 });
             }
@@ -242,43 +248,48 @@ public class BrowseFragment extends Fragment implements
         }
 
         protected void onPostExecute(String response) {
-            List<Report> reports = new ArrayList<>();
             try {
-                JSONArray jarray = new JSONArray(response);
-                for (int i = 0; i < jarray.length(); i++) {
-                    JSONObject reportObject = jarray.getJSONObject(i);
-                    String transcript = reportObject.getString("transcript");
-                    JSONArray coordinates = reportObject.getJSONObject("location").getJSONArray("coordinates");
-                    double longitude = coordinates.getDouble(0);
-                    double latitude = coordinates.getDouble(1);
+                JSONArray reports = new JSONArray(response);
+                for (int i = 0; i < reports.length(); i++) {
+                    JSONObject reportObject = reports.getJSONObject(i);
+                    String _id = reportObject.getString("_id");
+                    if (!idsOnMap.contains(_id)) {
+                        long timestamp = reportObject.getLong("timestamp");
+                        String transcript = reportObject.getString("transcript");
+                        JSONArray coordinates = reportObject.getJSONObject("location").getJSONArray("coordinates");
+                        double longitude = coordinates.getDouble(0);
+                        double latitude = coordinates.getDouble(1);
 
-                    Location recordingLocation = new Location("the report's location");
-                    recordingLocation.setLongitude(longitude);
-                    recordingLocation.setLatitude(latitude);
+                        Location recordingLocation = new Location("the report's location");
+                        recordingLocation.setLongitude(longitude);
+                        recordingLocation.setLatitude(latitude);
 
-                    Report newReport = new Report(transcript, recordingLocation, System.currentTimeMillis());
-                    reports.add(newReport);
+                        Report newReport = new Report(transcript, recordingLocation, timestamp);
+                        plotReportOnMap(newReport);
+                        idsOnMap.add(_id);
+                    }
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-            plotReportsOnMap(reports);
         }
     }
 
+    private void plotReportOnMap(Report report) {
+        Log.i(TAG, "Plotting report on map: " + report);
+        Location recordedLocation = report.getRecordedLocation();
+        LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
 
-    private void plotReportsOnMap(List<Report> reports) {
-        googleMap.clear();
-        for (Report each : reports) {
-            Location recordedLocation = each.getRecordedLocation();
-            LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
+        Date date = new Date(report.getPosixTime());
+        DateFormat dateFormat = android.text.format.DateFormat.getDateFormat(getContext());
+        String dateTime = dateFormat.format(date);
 
-            MarkerOptions marker = new MarkerOptions()
-                    .position(position)
-                    .title(each.getTranscribedText());
+        MarkerOptions marker = new MarkerOptions()
+                .position(position)
+                .title(report.getTranscribedText())
+                .snippet(dateTime);
 
-            googleMap.addMarker(marker);
-        }
+        googleMap.addMarker(marker);
     }
 
     private Location getCurrentLocation() {

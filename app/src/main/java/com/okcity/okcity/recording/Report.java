@@ -15,16 +15,26 @@ public class Report {
     private String transcribedText;
     private Location recordedLocation;
     private long posixTime;
+    private String _id;
 
     public Report() {
         transcribedText = "";
         recordedLocation = null;
+        posixTime = System.currentTimeMillis();
+        _id = null;
     }
 
     public Report(String transcribedText, Location recordedLocation, long posixTime) {
         this.transcribedText = transcribedText;
         this.recordedLocation = recordedLocation;
         this.posixTime = posixTime;
+    }
+
+    public Report(String transcribedText, Location recordedLocation, long posixTime, String _id) {
+        this.transcribedText = transcribedText;
+        this.recordedLocation = recordedLocation;
+        this.posixTime = posixTime;
+        this._id = _id;
     }
 
     public void setRecordedLocation(Location recordedLocation) {
@@ -51,6 +61,14 @@ public class Report {
         return recordedLocation;
     }
 
+    public String get_id() {
+        return _id;
+    }
+
+    public void set_id(String _id) {
+        this._id = _id;
+    }
+
     public void sendRecording() {
         if (recordedLocation != null && transcribedText != null && !transcribedText.equals("")) {
             double longitude = recordedLocation.getLongitude();
@@ -75,7 +93,7 @@ public class Report {
             String postData = "lon=" + longitude
                     + "&lat=" + latitude
                     + "&transcript=" + transcribedText
-                    + "&time=" + posixTime;
+                    + "&timestamp=" + posixTime;
 
             try {
                 URL url = new URL(urlString);
@@ -89,11 +107,9 @@ public class Report {
                 wr.flush();
 
                 statusCode = urlConnection.getResponseCode();
-                Log.i(TAG, "Done with post request");
             } catch (Exception e) {
                 System.out.println(e.getMessage());
             }
-
             return statusCode;
         }
 
@@ -101,6 +117,7 @@ public class Report {
         protected void onPostExecute(Integer statusCode) {
             Log.i(TAG, "OnPostExecute with status code " + statusCode);
         }
+
     }
 
     @Override
