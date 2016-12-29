@@ -246,8 +246,6 @@ public class BrowseFragment extends Fragment implements
         }
 
         protected void onPostExecute(String response) {
-            Log.i(TAG, "onPostExecute with response " + response);
-
             try {
                 JSONArray jarray = new JSONArray(response);
                 for (int i = 0; i < jarray.length(); i++) {
@@ -258,12 +256,11 @@ public class BrowseFragment extends Fragment implements
                     double latitude = coordinates.getDouble(1);
 
                     Location recordingLocation = new Location("the report's location");
-                    recordingLocation.setLatitude(longitude);
+                    recordingLocation.setLongitude(longitude);
                     recordingLocation.setLatitude(latitude);
 
                     Report newReport = new Report(transcript, recordingLocation);
                     plotReportOnMap(newReport);
-                    Log.i(TAG, "added new report: " + newReport);
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -279,5 +276,7 @@ public class BrowseFragment extends Fragment implements
         MarkerOptions marker = new MarkerOptions()
                 .position(position)
                 .snippet(report.getTranscribedText());
+
+        googleMap.addMarker(marker);
     }
 }
