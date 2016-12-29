@@ -28,7 +28,13 @@ import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
 import com.okcity.okcity.R;
+import com.okcity.okcity.recording.Report;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -214,7 +220,6 @@ public class BrowseFragment extends Fragment implements
             double latitude = Double.parseDouble(params[1]);
             double radius = Double.parseDouble(params[2]);
 
-            // -73.856077, 40.848447
             String urlString = "http://104.199.138.179/getNearby/?lon=" + longitude
                     + "&lat=" + latitude
                     + "&radius=" + radius;
@@ -243,6 +248,36 @@ public class BrowseFragment extends Fragment implements
         protected void onPostExecute(String response) {
             Log.i(TAG, "onPostExecute with response " + response);
 
+            try {
+                JSONArray jarray = new JSONArray(response);
+                for (int i = 0; i < jarray.length(); i++) {
+                    JSONObject reportObject = jarray.getJSONObject(i);
+                    String transcript = reportObject.getString("transcript");
+                    JSONArray coordinates = reportObject.getJSONObject("location").getJSONArray("coordinates");
+                    double longitude = coordinates.getDouble(0);
+                    double latitude = coordinates.getDouble(1);
+
+                    Location recordingLocation = new Location("the report's location");
+                    recordingLocation.setLatitude(longitude);
+                    recordingLocation.setLatitude(latitude);
+
+                    Report newReport = new Report(transcript, recordingLocation);
+                    plotReportOnMap(newReport);
+                    Log.i(TAG, "added new report: " + newReport);
+                }
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
         }
+    }
+
+    private void plotReportOnMap(Report report) {
+        Location recordedLocation = report.getRecordedLocation();
+        LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
+
+        MarkerOptions marker = new MarkerOptions()
+                .position(position)
+                .snippet(report.getTranscribedText());
     }
 }

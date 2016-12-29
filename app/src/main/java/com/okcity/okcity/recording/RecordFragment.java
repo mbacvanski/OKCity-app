@@ -33,7 +33,6 @@ import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
-import com.google.android.gms.maps.model.MarkerOptions;
 import com.okcity.okcity.R;
 
 import java.util.List;
@@ -55,7 +54,7 @@ public class RecordFragment extends Fragment implements
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
     private RecorderRecognizer recorderRecognizer;
-    private Recording currentRecording;
+    private Report currentReport;
 
     private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
@@ -204,12 +203,6 @@ public class RecordFragment extends Fragment implements
     private void handleNewLocation(GoogleMap googleMap, Location location) {
         LatLng userPosition = new LatLng(location.getLatitude(),
                 location.getLongitude());
-        // For dropping a marker at a point on the Map
-        MarkerOptions marker = new MarkerOptions()
-                .position(userPosition)
-                .title("Your Location");
-
-        googleMap.addMarker(marker);
 
         // For zooming automatically to the location of the marker
         CameraPosition cameraPosition = new CameraPosition.Builder()
@@ -255,7 +248,7 @@ public class RecordFragment extends Fragment implements
     @Override
     public void onResults(List<String> results) {
         recognizedText.setText(results.get(0));
-        currentRecording = new Recording(results.get(0), getCurrentLocation());
+        currentReport = new Report(results.get(0), getCurrentLocation());
         recognizedText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
@@ -265,8 +258,8 @@ public class RecordFragment extends Fragment implements
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 Log.d(TAG, "Text changed!");
-                currentRecording.setTranscribedText(s.toString());
-
+                currentReport.setTranscribedText(s.toString());
+                sendRecording();
             }
 
             @Override
@@ -276,8 +269,8 @@ public class RecordFragment extends Fragment implements
         });
     }
 
-    private void sendRecording(Recording recording) {
-
+    private void sendRecording() {
+        currentReport.sendRecording(getCurrentLocation());
     }
 
     private Location getCurrentLocation() {
