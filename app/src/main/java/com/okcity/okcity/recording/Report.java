@@ -14,10 +14,29 @@ public class Report {
 
     private String transcribedText;
     private Location recordedLocation;
+    private long posixTime;
 
-    public Report(String transcribedText, Location recordedLocation) {
+    public Report() {
+        transcribedText = "";
+        recordedLocation = null;
+    }
+
+    public Report(String transcribedText, Location recordedLocation, long posixTime) {
         this.transcribedText = transcribedText;
         this.recordedLocation = recordedLocation;
+        this.posixTime = posixTime;
+    }
+
+    public void setRecordedLocation(Location recordedLocation) {
+        this.recordedLocation = recordedLocation;
+    }
+
+    public void setPosixTime(long posixTime) {
+        this.posixTime = posixTime;
+    }
+
+    public long getPosixTime() {
+        return posixTime;
     }
 
     void setTranscribedText(String newText) {
@@ -32,11 +51,14 @@ public class Report {
         return recordedLocation;
     }
 
-    public void sendRecording(Location currentLocation) {
-        Log.i(TAG, "Sending recording");
-        double longitude = currentLocation.getLongitude();
-        double latitude = currentLocation.getLatitude();
-        new SendRecordingTask().execute(longitude, latitude);
+    public void sendRecording() {
+        if (recordedLocation != null && transcribedText != null && !transcribedText.equals("")) {
+            double longitude = recordedLocation.getLongitude();
+            double latitude = recordedLocation.getLatitude();
+            new SendRecordingTask().execute(longitude, latitude);
+        } else {
+            throw new IllegalStateException("No location or text given");
+        }
     }
 
     private class SendRecordingTask extends AsyncTask<Double, String, Integer> {
@@ -52,7 +74,8 @@ public class Report {
             double latitude = params[1];
             String postData = "lon=" + longitude
                     + "&lat=" + latitude
-                    + "&transcript=" + getTranscribedText();
+                    + "&transcript=" + transcribedText
+                    + "&time=" + posixTime;
 
             try {
                 URL url = new URL(urlString);
@@ -82,14 +105,21 @@ public class Report {
 
     @Override
     public String toString() {
+        if (recordedLocation != null) {
+            return "Report: {"
+                    + "Location: {"
+                    + "Latitude: "
+                    + recordedLocation.getLatitude()
+                    + ", Longitude: "
+                    + recordedLocation.getLongitude()
+                    + "}, Transcription: "
+                    + transcribedText
+                    + "}";
+        }
         return "Report: {"
-                + "Location: {"
-                + "Latitude: "
-                + recordedLocation.getLatitude()
-                + ", Longitude: "
-                + recordedLocation.getLongitude()
-                + "}, Transcription: "
+                + "Transcription: "
                 + transcribedText
                 + "}";
+
     }
 }

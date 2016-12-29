@@ -100,18 +100,11 @@ public class BrowseFragment extends Fragment implements
             public void onMapReady(GoogleMap mMap) {
                 Log.i(TAG, "Map is ready!");
                 googleMap = mMap;
-
-                googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
-                    @Override
-                    public void onCameraChange(CameraPosition cameraPosition) {
-                        Log.i(TAG, "Camera changed!");
-//                        getNearbyReports(getCurrentLocation(), 5.0);
-                    }
-                });
                 googleMap.setOnCameraMoveStartedListener(new GoogleMap.OnCameraMoveStartedListener() {
                     @Override
                     public void onCameraMoveStarted(int i) {
                         Log.i(TAG, "Camera moved!");
+                        //                        getNearbyReports(getCurrentLocation(), 5.0);
                     }
                 });
             }
@@ -122,32 +115,6 @@ public class BrowseFragment extends Fragment implements
 
         return v;
     }
-
-    private void moveMarkerToUserPosition(Location location) {
-        Log.i(TAG, "Moving marker to user position");
-        if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
-                checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
-            googleMap.setMyLocationEnabled(true);
-
-            if (location != null) {
-                Log.i(TAG, "Location was not null");
-                getNearbyReports(location, 5);
-
-                LatLng userPosition = new LatLng(location.getLatitude(),
-                        location.getLongitude());
-
-                if (firstTimeZoomingToUserLocation) {
-                    // For zooming automatically to the location of the marker
-                    CameraPosition cameraPosition = new CameraPosition.Builder()
-                            .target(userPosition).zoom(17).build();
-
-                    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-                    firstTimeZoomingToUserLocation = false;
-                }
-            }
-        }
-    }
-
 
     private boolean checkPermission(String permission) {
         return ContextCompat.checkSelfPermission(getActivity(), permission)
@@ -204,7 +171,25 @@ public class BrowseFragment extends Fragment implements
 
     @Override
     public void onLocationChanged(Location location) {
-        moveMarkerToUserPosition(location);
+        if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
+                checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            googleMap.setMyLocationEnabled(true);
+
+            if (firstTimeZoomingToUserLocation) {
+                // Move this to somewhere else later
+                getNearbyReports(location, 5);
+
+                LatLng userPosition = new LatLng(location.getLatitude(),
+                        location.getLongitude());
+
+                // For zooming automatically to the location of the marker
+                CameraPosition cameraPosition = new CameraPosition.Builder()
+                        .target(userPosition).zoom(17).build();
+
+                googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                firstTimeZoomingToUserLocation = false;
+            }
+        }
     }
 
     public void getNearbyReports(Location location, double milesRadius) {
@@ -271,7 +256,7 @@ public class BrowseFragment extends Fragment implements
                     recordingLocation.setLongitude(longitude);
                     recordingLocation.setLatitude(latitude);
 
-                    Report newReport = new Report(transcript, recordingLocation);
+                    Report newReport = new Report(transcript, recordingLocation, System.currentTimeMillis());
                     reports.add(newReport);
                 }
             } catch (JSONException e) {

@@ -1,6 +1,7 @@
 package com.okcity.okcity.recording;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -17,6 +18,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -54,7 +56,10 @@ public class RecordFragment extends Fragment implements
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
     private RecorderRecognizer recorderRecognizer;
-    private Report currentReport;
+    private Report currentReport = new Report();
+
+    private Button recordButton;
+    private Button submitButton;
 
     private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
@@ -66,11 +71,43 @@ public class RecordFragment extends Fragment implements
 
         recognizedText = (EditText) v.findViewById(R.id.voiceRecognizedText);
 
-        Button recordButton = (Button) v.findViewById(R.id.recordButton);
+        recordButton = (Button) v.findViewById(R.id.recordButton);
         recordButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startRecording();
+            }
+        });
+
+        submitButton = (Button) v.findViewById(R.id.submitButton);
+        submitButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendRecording();
+                submitButton.setEnabled(false);
+                recordButton.setText(R.string.record_report);
+            }
+        });
+
+        recognizedText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (s.toString().trim().equals("")) {
+                    submitButton.setEnabled(false);
+                } else {
+                    currentReport.setTranscribedText(s.toString());
+                    currentReport.setRecordedLocation(getCurrentLocation());
+                    currentReport.setPosixTime(System.currentTimeMillis());
+                    submitButton.setEnabled(true);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
             }
         });
 
@@ -112,6 +149,9 @@ public class RecordFragment extends Fragment implements
                 Manifest.permission.RECORD_AUDIO};
         askForPermissions(permissions, 7);
 
+        InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
+
         return v;
     }
 
@@ -148,6 +188,8 @@ public class RecordFragment extends Fragment implements
                     Toast.LENGTH_LONG).show();
             Log.d(TAG, "Voice recognition not present");
         } else {
+            recordButton.setEnabled(false);
+            recordButton.setText(R.string.recording);
             recorderRecognizer.startRecordingIntention();
         }
     }
@@ -248,29 +290,16 @@ public class RecordFragment extends Fragment implements
     @Override
     public void onResults(List<String> results) {
         recognizedText.setText(results.get(0));
-        currentReport = new Report(results.get(0), getCurrentLocation());
-        recognizedText.addTextChangedListener(new TextWatcher() {
-            @Override
-            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
-
-            }
-
-            @Override
-            public void onTextChanged(CharSequence s, int start, int before, int count) {
-                Log.d(TAG, "Text changed!");
-                currentReport.setTranscribedText(s.toString());
-                sendRecording();
-            }
-
-            @Override
-            public void afterTextChanged(Editable s) {
-                Log.d(TAG, "After text changed");
-            }
-        });
+        recordButton.setText(R.string.record_again);
+        recordButton.setEnabled(true);
+        submitButton.setEnabled(true);
+        currentReport = new Report(results.get(0), getCurrentLocation(), System.currentTimeMillis());
     }
 
     private void sendRecording() {
-        currentReport.sendRecording(getCurrentLocation());
+        currentReport.sendRecording();
+        recognizedText.setText("");
+        submitButton.setText(R.string.recording_submitted);
     }
 
     private Location getCurrentLocation() {

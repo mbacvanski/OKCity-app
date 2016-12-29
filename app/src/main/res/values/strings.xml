@@ -8,4 +8,9 @@
     <string name="whats_up">What\'s Up?</string>
     <string name="stop_recording">Stop recording</string>
     <string name="start_recording">Start Recording</string>
+    <string name="recording">Recording...</string>
+    <string name="record_again">Record Again</string>
+    <string name="submit_report">Submit Report</string>
+    <string name="record_report">Record Report</string>
+    <string name="recording_submitted">Recording submitted</string>
 </resources>
