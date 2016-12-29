@@ -42,6 +42,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
 
@@ -56,6 +57,7 @@ public class BrowseFragment extends Fragment implements
     private GoogleMap googleMap;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
+    private boolean firstTimeZoomingToUserLocation = true;
 
     public BrowseFragment() {
         // Required empty public constructor
@@ -98,11 +100,22 @@ public class BrowseFragment extends Fragment implements
             public void onMapReady(GoogleMap mMap) {
                 Log.i(TAG, "Map is ready!");
                 googleMap = mMap;
-                moveMarkerToUserPosition(googleMap);
+
+                googleMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+                    @Override
+                    public void onCameraChange(CameraPosition cameraPosition) {
+                        Log.i(TAG, "Camera changed!");
+//                        getNearbyReports(getCurrentLocation(), 5.0);
+                    }
+                });
+                googleMap.setOnCameraMoveStartedListener(new GoogleMap.OnCameraMoveStartedListener() {
+                    @Override
+                    public void onCameraMoveStarted(int i) {
+                        Log.i(TAG, "Camera moved!");
+                    }
+                });
             }
         });
-
-//        getNearbyReports(null, 5);
 
         InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
@@ -110,31 +123,29 @@ public class BrowseFragment extends Fragment implements
         return v;
     }
 
-    private void moveMarkerToUserPosition(final GoogleMap googleMap) {
+    private void moveMarkerToUserPosition(Location location) {
         Log.i(TAG, "Moving marker to user position");
         if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
                 checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
             googleMap.setMyLocationEnabled(true);
 
-            Location location = LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
-
             if (location != null) {
                 Log.i(TAG, "Location was not null");
-                handleNewLocation(googleMap, location);
+                getNearbyReports(location, 5);
+
+                LatLng userPosition = new LatLng(location.getLatitude(),
+                        location.getLongitude());
+
+                if (firstTimeZoomingToUserLocation) {
+                    // For zooming automatically to the location of the marker
+                    CameraPosition cameraPosition = new CameraPosition.Builder()
+                            .target(userPosition).zoom(17).build();
+
+                    googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+                    firstTimeZoomingToUserLocation = false;
+                }
             }
         }
-    }
-
-    private void handleNewLocation(GoogleMap googleMap, Location location) {
-        Log.i(TAG, "Handle new location");
-        LatLng userPosition = new LatLng(location.getLatitude(),
-                location.getLongitude());
-
-        // For zooming automatically to the location of the marker
-        CameraPosition cameraPosition = new CameraPosition.Builder()
-                .target(userPosition).zoom(17).build();
-
-        googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
     }
 
 
@@ -193,20 +204,20 @@ public class BrowseFragment extends Fragment implements
 
     @Override
     public void onLocationChanged(Location location) {
-        handleNewLocation(googleMap, location);
-        getNearbyReports(location, 5);
+        moveMarkerToUserPosition(location);
     }
 
-    public List<Report> getNearbyReports(Location location, int milesRadius) {
-        Log.i(TAG, "Get nearby reports");
+    public void getNearbyReports(Location location, double milesRadius) {
+        if (location != null) {
+            Log.i(TAG, "Get nearby reports");
 
-        String longitude = String.valueOf(location.getLongitude());
-        String latitude = String.valueOf(location.getLatitude());
-        String radius = String.valueOf(milesRadius);
+            String longitude = String.valueOf(location.getLongitude());
+            String latitude = String.valueOf(location.getLatitude());
+            String radius = String.valueOf(milesRadius);
 
-        String[] params = new String[]{longitude, latitude, radius};
-        new RetrieveReportsTask().execute(params);
-        return null;
+            String[] params = new String[]{longitude, latitude, radius};
+            new RetrieveReportsTask().execute(params);
+        }
     }
 
     class RetrieveReportsTask extends AsyncTask<String, Void, String> {
@@ -246,6 +257,7 @@ public class BrowseFragment extends Fragment implements
         }
 
         protected void onPostExecute(String response) {
+            List<Report> reports = new ArrayList<>();
             try {
                 JSONArray jarray = new JSONArray(response);
                 for (int i = 0; i < jarray.length(); i++) {
@@ -260,23 +272,35 @@ public class BrowseFragment extends Fragment implements
                     recordingLocation.setLatitude(latitude);
 
                     Report newReport = new Report(transcript, recordingLocation);
-                    plotReportOnMap(newReport);
+                    reports.add(newReport);
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
-
+            plotReportsOnMap(reports);
         }
     }
 
-    private void plotReportOnMap(Report report) {
-        Location recordedLocation = report.getRecordedLocation();
-        LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
 
-        MarkerOptions marker = new MarkerOptions()
-                .position(position)
-                .snippet(report.getTranscribedText());
+    private void plotReportsOnMap(List<Report> reports) {
+        googleMap.clear();
+        for (Report each : reports) {
+            Location recordedLocation = each.getRecordedLocation();
+            LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
 
-        googleMap.addMarker(marker);
+            MarkerOptions marker = new MarkerOptions()
+                    .position(position)
+                    .title(each.getTranscribedText());
+
+            googleMap.addMarker(marker);
+        }
+    }
+
+    private Location getCurrentLocation() {
+        if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
+                checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+        }
+        return null;
     }
 }
