@@ -2,14 +2,17 @@ package com.okcity.okcity.browsing;
 
 import android.Manifest;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -54,12 +57,14 @@ public class BrowseFragment extends Fragment implements
         LocationListener {
 
     private static final String TAG = "BrowseFragment";
+    private final int SEARCH_RADIUS = 5;
 
     private MapView mMapView;
     private GoogleMap googleMap;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
     private boolean firstTimeZoomingToUserLocation = true;
+    private FilterOptions filterOptions;
 
     private List<String> idsOnMap;
 
@@ -76,6 +81,7 @@ public class BrowseFragment extends Fragment implements
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
         idsOnMap = new ArrayList<>();
+        filterOptions = new FilterOptions();
 
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
         mMapView = (MapView) v.findViewById(R.id.browseMapView);
@@ -116,10 +122,41 @@ public class BrowseFragment extends Fragment implements
             }
         });
 
+        FloatingActionButton filterButton = (FloatingActionButton) v.findViewById(R.id.filterActionButton);
+        filterButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showFilterDialog();
+            }
+        });
+
         InputMethodManager imm = (InputMethodManager) getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(v.getWindowToken(), 0);
 
         return v;
+    }
+
+    private void showFilterDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        builder.setView(R.layout.fragment_filter_dialog)
+                .setMessage("Filter reports")
+                .setPositiveButton("Apply", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        filterOptions.setIndexOfFilter(id);
+                    }
+                })
+                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    public void onClick(DialogInterface dialog, int id) {
+                        // do nothing
+                    }
+                })
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+                        getNearbyReports(BrowseFragment.this.getCurrentLocation(), SEARCH_RADIUS);
+                    }
+                });
+        builder.show();
     }
 
     private boolean checkPermission(String permission) {
@@ -183,7 +220,7 @@ public class BrowseFragment extends Fragment implements
 
             if (firstTimeZoomingToUserLocation) {
                 // Move this to somewhere else later
-                getNearbyReports(location, 5);
+                getNearbyReports(location, SEARCH_RADIUS);
 
                 LatLng userPosition = new LatLng(location.getLatitude(),
                         location.getLongitude());

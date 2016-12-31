@@ -35,7 +35,6 @@ dependencies {
     compile 'io.grpc:grpc-protobuf-lite:1.0.1'
     compile 'io.grpc:grpc-stub:1.0.1'
 
-//    testCompile 'com.google.truth:truth:0.31'
     testCompile 'junit:junit:4.12'
 }
 
