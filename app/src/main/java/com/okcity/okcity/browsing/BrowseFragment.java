@@ -18,6 +18,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.Spinner;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -31,6 +32,7 @@ import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.okcity.okcity.R;
 import com.okcity.okcity.recording.Report;
@@ -46,9 +48,9 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
 public class BrowseFragment extends Fragment implements
@@ -57,19 +59,21 @@ public class BrowseFragment extends Fragment implements
         LocationListener {
 
     private static final String TAG = "BrowseFragment";
-    private final int SEARCH_RADIUS = 5;
+    private static final int DEFAULT_SEARCH_RADIUS = 5;
 
     private MapView mMapView;
     private GoogleMap googleMap;
     private LocationRequest locationRequest;
     private GoogleApiClient googleApiClient;
-    private boolean firstTimeZoomingToUserLocation = true;
     private FilterOptions filterOptions;
 
-    private List<String> idsOnMap;
+    private Map<String, Marker> markers;
+
+    private boolean firstTimeZoomingToUserLocation = true;
 
     public BrowseFragment() {
         // Required empty public constructor
+        filterOptions = new FilterOptions();
     }
 
     @Override
@@ -80,7 +84,7 @@ public class BrowseFragment extends Fragment implements
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        idsOnMap = new ArrayList<>();
+        markers = new HashMap<>();
         filterOptions = new FilterOptions();
 
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
@@ -116,7 +120,9 @@ public class BrowseFragment extends Fragment implements
                     @Override
                     public void onCameraMoveStarted(int i) {
                         Log.i(TAG, "Camera moved!");
-                        getNearbyReports(getCurrentLocation(), 5.0);
+                        getNearbyReports(getCurrentLocation(),
+                                DEFAULT_SEARCH_RADIUS,
+                                filterOptions.getMillisSelected());
                     }
                 });
             }
@@ -137,23 +143,30 @@ public class BrowseFragment extends Fragment implements
     }
 
     private void showFilterDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-        builder.setView(R.layout.fragment_filter_dialog)
+        final AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+        LayoutInflater factory = LayoutInflater.from(getContext());
+        final View dialogView = factory.inflate(R.layout.fragment_filter_dialog, null);
+        final Spinner filterSpinner = (Spinner) dialogView.findViewById(R.id.timeFilterSpinner);
+        filterSpinner.setSelection(filterOptions.getIndexOfFilter());
+        builder.setView(dialogView)
                 .setMessage("Filter reports")
                 .setPositiveButton("Apply", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
-                        filterOptions.setIndexOfFilter(id);
+                        int index = filterSpinner.getSelectedItemPosition();
+                        filterOptions.setIndexOfFilter(index);
                     }
                 })
                 .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int id) {
-                        // do nothing
                     }
                 })
                 .setOnDismissListener(new DialogInterface.OnDismissListener() {
                     @Override
                     public void onDismiss(DialogInterface dialog) {
-                        getNearbyReports(BrowseFragment.this.getCurrentLocation(), SEARCH_RADIUS);
+                        Log.i(TAG, "Dismissed!");
+                        getNearbyReports(BrowseFragment.this.getCurrentLocation(),
+                                DEFAULT_SEARCH_RADIUS,
+                                filterOptions.getMillisSelected());
                     }
                 });
         builder.show();
@@ -220,7 +233,7 @@ public class BrowseFragment extends Fragment implements
 
             if (firstTimeZoomingToUserLocation) {
                 // Move this to somewhere else later
-                getNearbyReports(location, SEARCH_RADIUS);
+                getNearbyReports(location, DEFAULT_SEARCH_RADIUS, filterOptions.getMillisSelected());
 
                 LatLng userPosition = new LatLng(location.getLatitude(),
                         location.getLongitude());
@@ -235,7 +248,7 @@ public class BrowseFragment extends Fragment implements
         }
     }
 
-    public void getNearbyReports(Location location, double milesRadius) {
+    public void getNearbyReports(Location location, double milesRadius, long recentMillis) {
         if (location != null) {
             Log.i(TAG, "Get nearby reports");
 
@@ -243,7 +256,7 @@ public class BrowseFragment extends Fragment implements
             String latitude = String.valueOf(location.getLatitude());
             String radius = String.valueOf(milesRadius);
 
-            String[] params = new String[]{longitude, latitude, radius};
+            String[] params = new String[]{longitude, latitude, radius, String.valueOf(recentMillis)};
             new RetrieveReportsTask().execute(params);
         }
     }
@@ -258,10 +271,12 @@ public class BrowseFragment extends Fragment implements
             double longitude = Double.parseDouble(params[0]);
             double latitude = Double.parseDouble(params[1]);
             double radius = Double.parseDouble(params[2]);
+            long recentMillis = Long.parseLong(params[3]);
 
             String urlString = "http://104.199.138.179/getNearby/?lon=" + longitude
                     + "&lat=" + latitude
-                    + "&radius=" + radius;
+                    + "&radius=" + radius
+                    + "&recentMillis=" + recentMillis;
 
             Log.i(TAG, "urlString = " + urlString);
 
@@ -286,24 +301,38 @@ public class BrowseFragment extends Fragment implements
 
         protected void onPostExecute(String response) {
             try {
+                Map<String, Report> newReports = new HashMap<>();
                 JSONArray reports = new JSONArray(response);
                 for (int i = 0; i < reports.length(); i++) {
                     JSONObject reportObject = reports.getJSONObject(i);
                     String _id = reportObject.getString("_id");
-                    if (!idsOnMap.contains(_id)) {
-                        long timestamp = reportObject.getLong("timestamp");
-                        String transcript = reportObject.getString("transcript");
-                        JSONArray coordinates = reportObject.getJSONObject("location").getJSONArray("coordinates");
-                        double longitude = coordinates.getDouble(0);
-                        double latitude = coordinates.getDouble(1);
+                    long timestamp = reportObject.getLong("timestamp");
+                    String transcript = reportObject.getString("transcript");
+                    JSONArray coordinates = reportObject.getJSONObject("location").getJSONArray("coordinates");
+                    double longitude = coordinates.getDouble(0);
+                    double latitude = coordinates.getDouble(1);
 
-                        Location recordingLocation = new Location("the report's location");
-                        recordingLocation.setLongitude(longitude);
-                        recordingLocation.setLatitude(latitude);
+                    Location recordingLocation = new Location("the report's location");
+                    recordingLocation.setLongitude(longitude);
+                    recordingLocation.setLatitude(latitude);
 
-                        Report newReport = new Report(transcript, recordingLocation, timestamp);
-                        plotReportOnMap(newReport);
-                        idsOnMap.add(_id);
+                    Report newReport = new Report(transcript, recordingLocation, timestamp);
+                    newReports.put(_id, newReport);
+                }
+
+                // Extremely wholesome loops; plz applaud developer
+                for (String each : newReports.keySet()) {
+                    if (!markers.containsKey(each)) {
+                        // This marker is not on the map but should go on the map
+                        Marker addedMarker = plotReportOnMap(newReports.get(each));
+                        markers.put(each, addedMarker);
+                    }
+                }
+
+                for (String each : markers.keySet()) {
+                    if (!newReports.containsKey(each)) {
+                        // This marker is on the map but should not be anymore
+                        markers.get(each).remove();
                     }
                 }
             } catch (JSONException e) {
@@ -312,7 +341,7 @@ public class BrowseFragment extends Fragment implements
         }
     }
 
-    private void plotReportOnMap(Report report) {
+    private Marker plotReportOnMap(Report report) {
         Log.i(TAG, "Plotting report on map: " + report);
         Location recordedLocation = report.getRecordedLocation();
         LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
@@ -326,7 +355,7 @@ public class BrowseFragment extends Fragment implements
                 .title(report.getTranscribedText())
                 .snippet(dateTime);
 
-        googleMap.addMarker(marker);
+        return googleMap.addMarker(marker);
     }
 
     private Location getCurrentLocation() {

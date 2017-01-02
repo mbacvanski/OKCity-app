@@ -1,31 +1,40 @@
 package com.okcity.okcity.browsing;
 
-public class FilterOptions {
+class FilterOptions {
 
     public static final String[] TIME_FILTER_STRINGS = new String[]{
             "Past minute", "Past 15 minutes", "Past 30 minutes", "Past hour", "Past day",
             "Past week", "Past month"};
-    public static final Long[] TIMES_MILLI = new Long[]{
-            6000L,      // Past minute
-            90000L,     // Past 15 minutes
-            180000L,    // Past 30 minutes
-            360000L,    // Past hour
-            86400000L,  // Past day
-            604800000L, // Past week
-            2629743000L // Past month
+
+    static final Long[] TIMES_MILLI = new Long[]{
+            60000L,      // Past minute
+            900000L,     // Past 15 minutes
+            1800000L,    // Past 30 minutes
+            3600000L,    // Past hour
+            864000000L,  // Past day
+            6048000000L, // Past week
+            26297430000L // Past month
     };
 
     private int indexOfFilter;
 
-    public FilterOptions() {
-        indexOfFilter = -1;
+    FilterOptions() {
+        indexOfFilter = 3; // default
     }
 
-    public void setIndexOfFilter(int indexOfFilter) {
-        this.indexOfFilter = indexOfFilter;
+    void setIndexOfFilter(int indexOfFilter) {
+        if (indexOfFilter >= 0 && indexOfFilter < TIMES_MILLI.length) {
+            this.indexOfFilter = indexOfFilter;
+        } else {
+            throw new IllegalArgumentException("Index not within range: got " + indexOfFilter);
+        }
     }
 
-    public int getIndexOfFilter() {
+    int getIndexOfFilter() {
         return indexOfFilter;
+    }
+
+    long getMillisSelected() {
+        return TIMES_MILLI[indexOfFilter];
     }
 }
