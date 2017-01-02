@@ -34,6 +34,7 @@ dependencies {
     compile 'io.grpc:grpc-okhttp:1.0.1'
     compile 'io.grpc:grpc-protobuf-lite:1.0.1'
     compile 'io.grpc:grpc-stub:1.0.1'
+    compile group: 'com.kennycason', name: 'kumo', version: '1.0'
 
     testCompile 'junit:junit:4.12'
 }
