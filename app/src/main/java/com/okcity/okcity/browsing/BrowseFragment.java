@@ -67,6 +67,7 @@ public class BrowseFragment extends Fragment implements
     private GoogleApiClient googleApiClient;
     private FilterOptions filterOptions;
 
+    // Contains the _id and the marker of the markers on the map
     private Map<String, Marker> markers;
 
     private boolean firstTimeZoomingToUserLocation = true;
@@ -261,6 +262,31 @@ public class BrowseFragment extends Fragment implements
         }
     }
 
+    private Marker plotReportOnMap(Report report) {
+        Log.i(TAG, "Plotting report on map: " + report);
+        Location recordedLocation = report.getRecordedLocation();
+        LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
+
+        Date date = new Date(report.getPosixTime());
+        DateFormat dateFormat = android.text.format.DateFormat.getDateFormat(getContext());
+        String dateTime = dateFormat.format(date);
+
+        MarkerOptions marker = new MarkerOptions()
+                .position(position)
+                .title(report.getTranscribedText())
+                .snippet(dateTime);
+
+        return googleMap.addMarker(marker);
+    }
+
+    private Location getCurrentLocation() {
+        if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
+                checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
+            return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
+        }
+        return null;
+    }
+
     class RetrieveReportsTask extends AsyncTask<String, Void, String> {
 
         private static final String TAG = "RetrieveReportsTask";
@@ -320,7 +346,6 @@ public class BrowseFragment extends Fragment implements
                     newReports.put(_id, newReport);
                 }
 
-                // Extremely wholesome loops; plz applaud developer
                 for (String each : newReports.keySet()) {
                     if (!markers.containsKey(each)) {
                         // This marker is not on the map but should go on the map
@@ -333,36 +358,12 @@ public class BrowseFragment extends Fragment implements
                     if (!newReports.containsKey(each)) {
                         // This marker is on the map but should not be anymore
                         markers.get(each).remove();
+                        markers.remove(each);
                     }
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
         }
-    }
-
-    private Marker plotReportOnMap(Report report) {
-        Log.i(TAG, "Plotting report on map: " + report);
-        Location recordedLocation = report.getRecordedLocation();
-        LatLng position = new LatLng(recordedLocation.getLatitude(), recordedLocation.getLongitude());
-
-        Date date = new Date(report.getPosixTime());
-        DateFormat dateFormat = android.text.format.DateFormat.getDateFormat(getContext());
-        String dateTime = dateFormat.format(date);
-
-        MarkerOptions marker = new MarkerOptions()
-                .position(position)
-                .title(report.getTranscribedText())
-                .snippet(dateTime);
-
-        return googleMap.addMarker(marker);
-    }
-
-    private Location getCurrentLocation() {
-        if (checkPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) &&
-                checkPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)) {
-            return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
-        }
-        return null;
     }
 }
