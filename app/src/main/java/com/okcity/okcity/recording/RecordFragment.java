@@ -7,8 +7,10 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.speech.RecognizerIntent;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
@@ -37,6 +39,9 @@ import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.okcity.okcity.R;
 
+import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.List;
 
 import static android.app.Activity.RESULT_OK;
@@ -49,7 +54,7 @@ public class RecordFragment extends Fragment implements
 
     private static final String TAG = "RecordFragment";
     private static final int VOICE_RECOGNITION_REQUEST_CODE = 100;
-
+    private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private EditText recognizedText;
     private MapView mMapView;
     private GoogleMap googleMap;
@@ -57,11 +62,8 @@ public class RecordFragment extends Fragment implements
     private GoogleApiClient googleApiClient;
     private RecorderRecognizer recorderRecognizer;
     private Report currentReport = new Report();
-
     private Button recordButton;
     private Button submitButton;
-
-    private static final int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
 
     @Override
     public View onCreateView(LayoutInflater inflater,
@@ -155,6 +157,10 @@ public class RecordFragment extends Fragment implements
         return v;
     }
 
+    private void sendRecording() {
+        new SendRecordingTask().execute();
+    }
+
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == VOICE_RECOGNITION_REQUEST_CODE) {
@@ -204,7 +210,7 @@ public class RecordFragment extends Fragment implements
     }
 
     @Override
-    public void onConnectionFailed(ConnectionResult connectionResult) {
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
         if (connectionResult.hasResolution()) {
             try {
                 // Start an Activity that tries to resolve the error
@@ -296,11 +302,11 @@ public class RecordFragment extends Fragment implements
         currentReport = new Report(results.get(0), getCurrentLocation(), System.currentTimeMillis());
     }
 
-    private void sendRecording() {
-        currentReport.sendRecording();
-        recognizedText.setText("");
-        submitButton.setText(R.string.recording_submitted);
-    }
+//    private void sendRecording() {
+//sendRecording();
+//        recognizedText.setText("");
+//        submitButton.setText(R.string.recording_submitted);
+//    }
 
     private Location getCurrentLocation() {
         if (checkPermission(Manifest.permission.ACCESS_FINE_LOCATION) &&
@@ -308,5 +314,45 @@ public class RecordFragment extends Fragment implements
             return LocationServices.FusedLocationApi.getLastLocation(googleApiClient);
         }
         return null;
+    }
+
+    private class SendRecordingTask extends AsyncTask<Double, String, Integer> {
+
+        private static final String TAG = "SendRecordingTask";
+
+        @Override
+        protected Integer doInBackground(Double... params) {
+            int statusCode = -1;
+
+            System.out.println("currentReport = " + currentReport);
+
+            String urlString = getContext().getString(R.string.backend_url) + "addReport/"; // URL to call
+            String postData = "lon=" + currentReport.getRecordedLocation().getLongitude()
+                    + "&lat=" + currentReport.getRecordedLocation().getLatitude()
+                    + "&transcript=" + currentReport.getTranscribedText()
+                    + "&timestamp=" + currentReport.getPosixTime();
+
+            try {
+                URL url = new URL(urlString);
+                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
+                urlConnection.setRequestMethod("POST");
+                urlConnection.setDoOutput(true);
+
+                OutputStreamWriter wr = new OutputStreamWriter(urlConnection.getOutputStream());
+
+                wr.write(postData);
+                wr.flush();
+
+                statusCode = urlConnection.getResponseCode();
+            } catch (Exception e) {
+                System.out.println(e.getMessage());
+            }
+            return statusCode;
+        }
+
+        @Override
+        protected void onPostExecute(Integer statusCode) {
+            Log.i(TAG, "OnPostExecute with status code " + statusCode);
+        }
     }
 }

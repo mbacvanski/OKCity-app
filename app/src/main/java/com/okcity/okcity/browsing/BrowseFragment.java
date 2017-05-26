@@ -48,8 +48,10 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
@@ -67,8 +69,8 @@ public class BrowseFragment extends Fragment implements
     private GoogleApiClient googleApiClient;
     private FilterOptions filterOptions;
 
-    // Contains the _id and the marker of the markers on the map
-    private Map<String, Marker> markers;
+    // Contains the _id and the marker of the mapOfReportsOnMap on the map
+    private Map<String, ReportOnMap> mapOfReportsOnMap;
 
     private boolean firstTimeZoomingToUserLocation = true;
 
@@ -85,7 +87,7 @@ public class BrowseFragment extends Fragment implements
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        markers = new HashMap<>();
+        mapOfReportsOnMap = new HashMap<>();
         filterOptions = new FilterOptions();
 
         View v = inflater.inflate(R.layout.fragment_browse, container, false);
@@ -189,12 +191,10 @@ public class BrowseFragment extends Fragment implements
 
     @Override
     public void onConnectionSuspended(int i) {
-
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
     }
 
 
@@ -299,7 +299,7 @@ public class BrowseFragment extends Fragment implements
             double radius = Double.parseDouble(params[2]);
             long recentMillis = Long.parseLong(params[3]);
 
-            String urlString = "http://104.199.138.179/getNearby/?lon=" + longitude
+            String urlString = getContext().getString(R.string.backend_url) + "getNearby/?lon=" + longitude
                     + "&lat=" + latitude
                     + "&radius=" + radius
                     + "&recentMillis=" + recentMillis;
@@ -346,19 +346,20 @@ public class BrowseFragment extends Fragment implements
                     newReports.put(_id, newReport);
                 }
 
-                for (String each : newReports.keySet()) {
-                    if (!markers.containsKey(each)) {
+                for (String _id : newReports.keySet()) {
+                    if (!mapOfReportsOnMap.containsKey(_id)) {
                         // This marker is not on the map but should go on the map
-                        Marker addedMarker = plotReportOnMap(newReports.get(each));
-                        markers.put(each, addedMarker);
+                        Report newReport = newReports.get(_id);
+                        ReportOnMap addedMarker = new ReportOnMap(newReport, plotReportOnMap(newReport));
+                        mapOfReportsOnMap.put(_id, addedMarker);
                     }
                 }
 
-                for (String each : markers.keySet()) {
-                    if (!newReports.containsKey(each)) {
+                for (String _id : mapOfReportsOnMap.keySet()) {
+                    if (!newReports.containsKey(_id)) {
                         // This marker is on the map but should not be anymore
-                        markers.get(each).remove();
-                        markers.remove(each);
+                        mapOfReportsOnMap.get(_id).getMarker().remove();
+                        mapOfReportsOnMap.remove(_id);
                     }
                 }
             } catch (JSONException e) {

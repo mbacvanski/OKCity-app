@@ -69,57 +69,6 @@ public class Report {
         this._id = _id;
     }
 
-    public void sendRecording() {
-        if (recordedLocation != null && transcribedText != null && !transcribedText.equals("")) {
-            double longitude = recordedLocation.getLongitude();
-            double latitude = recordedLocation.getLatitude();
-            new SendRecordingTask().execute(longitude, latitude);
-        } else {
-            throw new IllegalStateException("No location or text given");
-        }
-    }
-
-    private class SendRecordingTask extends AsyncTask<Double, String, Integer> {
-
-        private static final String TAG = "SendRecordingTask";
-
-        @Override
-        protected Integer doInBackground(Double... params) {
-            int statusCode = -1;
-
-            String urlString = "http://104.199.138.179/addReport/"; // URL to call
-            double longitude = params[0];
-            double latitude = params[1];
-            String postData = "lon=" + longitude
-                    + "&lat=" + latitude
-                    + "&transcript=" + transcribedText
-                    + "&timestamp=" + posixTime;
-
-            try {
-                URL url = new URL(urlString);
-                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-                urlConnection.setRequestMethod("POST");
-                urlConnection.setDoOutput(true);
-
-                OutputStreamWriter wr = new OutputStreamWriter(urlConnection.getOutputStream());
-
-                wr.write(postData);
-                wr.flush();
-
-                statusCode = urlConnection.getResponseCode();
-            } catch (Exception e) {
-                System.out.println(e.getMessage());
-            }
-            return statusCode;
-        }
-
-        @Override
-        protected void onPostExecute(Integer statusCode) {
-            Log.i(TAG, "OnPostExecute with status code " + statusCode);
-        }
-
-    }
-
     @Override
     public String toString() {
         if (recordedLocation != null) {
